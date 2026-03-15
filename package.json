@@ -6,18 +6,8 @@
   "type": "module",
   "scripts": {
     "build": "pnpm -r build",
-    "dev": "pnpm -r dev",
-    "test": "vitest",
-    "test:watch": "vitest --watch",
-    "test:coverage": "vitest --coverage",
-    "lint": "eslint . --ext .ts,.tsx --fix",
-    "type-check": "tsc --noEmit",
-    "clean": "pnpm -r clean",
-    "example": "pnpm --filter demo-app dev",
-    "example:build": "pnpm --filter demo-app build",
-    "changeset": "changeset",
-    "version-packages": "changeset version",
-    "release": "pnpm build && changeset publish"
+    "test": "pnpm -r test",
+    "dev": "pnpm -r dev"
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.1",

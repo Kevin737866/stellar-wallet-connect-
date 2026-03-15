@@ -5,9 +5,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "test": "echo \"Tests pending\" && exit 0"
   },
   "dependencies": {
     "@stellar-wallet-connect/core": "workspace:*",

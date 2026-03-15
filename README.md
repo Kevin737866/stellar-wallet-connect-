@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Stellar Wallet Connect
 
 A comprehensive TypeScript React library that provides seamless wallet connection functionality for Stellar blockchain applications.
@@ -203,3 +204,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 📞 Support
 
 If you have any questions or need help, please open an issue on GitHub.
+=======
+# stellar-wallet-connect-
+A decentralized utility payment platform (Pay electricity &amp; water bills using stellar)
+>>>>>>> 73226992af4f7453d767a57cad4c6709133b93ea
