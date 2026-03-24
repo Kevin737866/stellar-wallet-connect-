@@ -1,18 +1,19 @@
-<<<<<<< HEAD
 # Stellar Wallet Connect
 
-A comprehensive TypeScript React library that provides seamless wallet connection functionality for Stellar blockchain applications.
+A comprehensive TypeScript library that provides seamless wallet connection functionality for Stellar blockchain applications with enhanced mobile support.
 
 ## 🚀 Features
 
 - **Multi-Wallet Support**: Freighter, xBull, Lobstr, Albedo, Rabet
+- **Mobile Deep Linking**: Native mobile app integration for xBull and Lobstr
+- **Web Fallback**: Browser-based wallet interfaces when extensions aren't available
 - **React Hooks**: `useWallet`, `useBalance`, `useSignTransaction`
 - **UI Components**: Beautiful wallet selection modal
 - **TypeScript**: Full type safety with strict mode
 - **Vanilla JS SDK**: Use without React if needed
-- **Auto-Detection**: Automatically detects installed wallets
+- **Auto-Detection**: Automatically detects installed wallets and mobile apps
 - **Event Handling**: Listen for account/network changes
-- **Error Handling**: Comprehensive error management
+- **Error Handling**: Comprehensive error management with mobile-specific error codes
 
 ## 📦 Packages
 
@@ -23,11 +24,11 @@ A comprehensive TypeScript React library that provides seamless wallet connectio
 ## 🛠️ Installation
 
 ```bash
-# Install the library
-pnpm add @stellar-wallet-connect/react @stellar-wallet-connect/ui
+# Install library
+npm install @stellar-wallet-connect/react @stellar-wallet-connect/ui
 
 # Install peer dependencies
-pnpm add react react-dom
+npm install react react-dom
 ```
 
 ## ⚡ Quick Start
@@ -65,9 +66,37 @@ function YourApp() {
 }
 ```
 
+## 📱 Mobile Support
+
+### xBull Mobile Integration
+- **Deep Link Scheme**: `xbull://`
+- **Actions**: connect, signTransaction, getPublicKey, getNetwork
+- **Auto-detection**: Automatically detects mobile vs desktop environments
+
+### Lobstr Mobile Integration  
+- **Deep Link Scheme**: `lobstr://`
+- **Actions**: connect, signTransaction, getPublicKey, getNetwork
+- **Web Fallback**: Uses @lobstrco/signer when extension not available
+
+### Mobile Usage Example
+```typescript
+import { XbullAdapter, LobstrAdapter } from '@stellar-wallet-connect/core';
+
+// Mobile-ready adapters
+const xbull = new XbullAdapter();
+const lobstr = new LobstrAdapter();
+
+// Automatically handles mobile deep linking
+if (xbull.isInstalled()) {
+  const account = await xbull.connect();
+} else if (lobstr.isInstalled()) {
+  const account = await lobstr.connect();
+}
+```
+
 ## 📚 API Reference
 
-### Core Types
+### Enhanced Wallet Types
 
 ```typescript
 interface WalletAdapter {
@@ -75,94 +104,88 @@ interface WalletAdapter {
   name: string;
   icon: string;
   url: string;
+  downloadUrl?: string;
   isInstalled(): boolean;
   connect(): Promise<WalletAccount>;
   disconnect(): Promise<void>;
   getPublicKey(): Promise<string>;
   signTransaction(xdr: string, network?: Network): Promise<string>;
   getNetwork(): Promise<Network>;
+  onAccountChanged?(callback: (account: WalletAccount | null) => void): () => void;
+  onNetworkChanged?(callback: (network: Network) => void): () => void;
+  supportsMobileDeepLink?(): boolean;
+  supportsWebFallback?(): boolean;
 }
 
 type WalletType = 'freighter' | 'xbull' | 'lobstr' | 'albedo' | 'rabet';
 type Network = 'public' | 'testnet';
 ```
 
-### React Hooks
-
-#### `useWallet()`
-
-Main hook for wallet connection state and actions.
+### Mobile-Specific Types
 
 ```typescript
-const { state, connect, disconnect, signTransaction } = useWallet();
+interface MobileDeepLinkConfig {
+  scheme: string;
+  action: 'connect' | 'signTransaction' | 'getPublicKey' | 'getNetwork';
+  params: Record<string, string>;
+  callbackUrl?: string;
+  timeout?: number;
+}
+
+interface DeepLinkResponse {
+  action: string;
+  data: {
+    publicKey?: string;
+    signedXDR?: string;
+    network?: Network;
+    error?: string;
+  };
+  success: boolean;
+  timestamp: number;
+}
 ```
 
-#### `useBalance(options?)`
-
-Hook for fetching and managing account balance.
+### Error Codes
 
 ```typescript
-const { balance, isLoading, error, refresh } = useBalance({
-  assetCode: 'XLM',
-  refreshInterval: 30000
-});
-```
-
-#### `useSignTransaction()`
-
-Hook for signing transactions with error handling.
-
-```typescript
-const { signTransaction, isLoading, error } = useSignTransaction();
-```
-
-### UI Components
-
-#### `WalletModal`
-
-Modal component for wallet selection.
-
-```typescript
-<WalletModal 
-  isOpen={isOpen} 
-  onClose={() => setIsModalOpen(false)}
-  className="custom-modal-styles"
-/>
-```
-
-#### `WalletButton`
-
-Button component that shows connection state.
-
-```typescript
-<WalletButton onOpen={() => setIsModalOpen(true)}>
-  Connect Wallet
-</WalletButton>
+const WalletErrorCode = {
+  // General errors
+  WALLET_NOT_INSTALLED: 'WALLET_NOT_INSTALLED',
+  CONNECTION_FAILED: 'CONNECTION_FAILED',
+  
+  // Mobile-specific errors
+  MOBILE_CONNECT_FAILED: 'MOBILE_CONNECT_FAILED',
+  DEEP_LINK_TIMEOUT: 'DEEP_LINK_TIMEOUT',
+  DEEP_LINK_UNSUPPORTED: 'DEEP_LINK_UNSUPPORTED',
+  
+  // Web fallback errors
+  WEB_FALLBACK_FAILED: 'WEB_FALLBACK_FAILED',
+  WEB_FALLBACK_NOT_SUPPORTED: 'WEB_FALLBACK_NOT_SUPPORTED',
+  
+  // ... and more
+} as const;
 ```
 
 ## 🏗️ Development
 
 ```bash
 # Install dependencies
-pnpm install
+npm install
 
 # Build all packages
-pnpm build
+npm run build
 
 # Start development
-pnpm dev
+npm run dev
 
-# Run example app
-pnpm example
+# Run tests
+npm run test
 
 # Type checking
-pnpm type-check
+npm run type-check
 
 # Linting
-pnpm lint
-
-# Clean all
-pnpm clean
+npm run lint
 ```
 
 ## 📁 Project Structure
@@ -170,11 +193,21 @@ pnpm clean
 ```
 stellar-wallet-connect/
 ├── packages/
-│   ├── core/          # Vanilla JS SDK
+│   ├── core/          # Vanilla JS SDK with enhanced adapters
+│   │   ├── src/
+│   │   │   ├── adapters/
+│   │   │   │   ├── xbull.ts      # Enhanced xBull adapter
+│   │   │   │   ├── lobstr.ts     # Enhanced Lobstr adapter
+│   │   │   │   ├── freighter.ts  # Freighter adapter
+│   │   │   │   ├── albedo.ts     # Albedo adapter
+│   │   │   │   └── rabet.ts      # Rabet adapter
+│   │   │   └── types.ts          # Enhanced type definitions
+│   │   └── __tests__/            # Comprehensive test suite
 │   ├── react/         # React hooks and provider
 │   └── ui/            # UI components
 ├── examples/
 │   └── demo-app/      # Example application
+├── MOBILE_CONSIDERATIONS.md  # Mobile integration guide
 ├── package.json
 ├── pnpm-workspace.yaml
 ├── tsconfig.json
@@ -185,26 +218,24 @@ stellar-wallet-connect/
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-1. Fork the repository
+1. Fork repository
 2. Create your feature branch (`git checkout -b feature/amazing-feature`)
 3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
+4. Push to branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
-- [Stellar](https://stellar.org/) for the amazing blockchain platform
-- [Freighter](https://www.freighter.app/) for the excellent wallet
+- [Stellar](https://stellar.org/) for amazing blockchain platform
+- [xBull](https://xbull.app/) for mobile wallet integration
+- [Lobstr](https://lobstr.co/) for mobile and web wallet support
+- [Freighter](https://www.freighter.app/) for excellent wallet
 - All wallet providers for their support
 
 ## 📞 Support
 
-If you have any questions or need help, please open an issue on GitHub.
-=======
-# stellar-wallet-connect-
-A decentralized utility payment platform (Pay electricity &amp; water bills using stellar)
->>>>>>> 73226992af4f7453d767a57cad4c6709133b93ea
+If you have any questions or need help, please open an issue on GitHub or check the [Mobile Considerations](./MOBILE_CONSIDERATIONS.md) guide for mobile-specific integration details.

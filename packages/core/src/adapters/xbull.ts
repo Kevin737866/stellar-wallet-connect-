@@ -1,41 +1,81 @@
 /**
  * xBull wallet adapter implementation
- * @fileoverview Adapter for xBull wallet
+ * @fileoverview Enhanced adapter for xBull wallet with extension detection and mobile support
  */
 
 import { WalletAdapter, WalletAccount, WalletError, Network, WalletType } from '../types';
 
+// xBull wallet connect types
+interface XBullWalletConnect {
+  isConnected(): Promise<boolean>;
+  getPublicKey(): Promise<string>;
+  signTransaction(xdr: string, network?: Network): Promise<string>;
+  getNetwork(): Promise<Network>;
+  connect(): Promise<{ publicKey: string; network: Network }>;
+  disconnect(): Promise<void>;
+  onAccountChanged(callback: (account: { publicKey: string; network: Network } | null) => void): () => void;
+  onNetworkChanged(callback: (network: Network) => void): () => void;
+}
+
 declare global {
   interface Window {
-    xBull?: {
-      isConnected(): Promise<boolean>;
-      getPublicKey(): Promise<string>;
-      signTransaction(xdr: string, network?: Network): Promise<string>;
-      getNetwork(): Promise<Network>;
-      connect(): Promise<{ publicKey: string; network: Network }>;
-      disconnect(): Promise<void>;
-      onAccountChanged(callback: (account: { publicKey: string; network: Network } | null) => void): () => void;
-      onNetworkChanged(callback: (network: Network) => void): () => void;
-    };
+    xBull?: XBullWalletConnect;
+    xBullWalletConnect?: XBullWalletConnect;
   }
 }
 
 /**
  * xBull wallet adapter
  * @see https://xbull.app/
+ * @see https://www.npmjs.com/package/@creit.tech/xbull-wallet-connect
  */
 export class XbullAdapter implements WalletAdapter {
   readonly type: WalletType = 'xbull';
   readonly name = 'xBull';
   readonly icon = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiByeD0iOCIgZmlsbD0iIzM3NDE1MSIvPgo8cGF0aCBkPSJNMTAgMjBMMjAgMTBMMzAgMjBMMjAgMzBMMTAgMjBaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K';
   readonly url = 'https://xbull.app';
+  readonly downloadUrl = 'https://chrome.google.com/webstore/detail/xbull-wallet/jfbapfmkmnpdjobgmljepjnpfoabobbf';
+
+  private xbullInstance: XBullWalletConnect | null = null;
 
   /**
-   * Check if xBull is installed
+   * Check if xBull is installed (extension or mobile)
    * @returns True if xBull API is available
    */
   isInstalled(): boolean {
-    return typeof window !== 'undefined' && !!window.xBull;
+    if (typeof window === 'undefined') return false;
+    
+    // Check for extension first
+    if (window.xBull) return true;
+    
+    // Check for mobile wallet connect
+    if (window.xBullWalletConnect) return true;
+    
+    return false;
+  }
+
+  /**
+   * Get the xBull instance (extension or mobile)
+   * @returns xBull instance or null
+   */
+  private getXBullInstance(): XBullWalletConnect | null {
+    if (this.xbullInstance) return this.xbullInstance;
+    
+    // Prefer extension over mobile
+    this.xbullInstance = window.xBull || window.xBullWalletConnect || null;
+    return this.xbullInstance;
+  }
+
+  /**
+   * Detect if running on mobile device
+   * @returns True if mobile device
+   */
+  private isMobile(): boolean {
+    if (typeof window === 'undefined') return false;
+    
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+      navigator.userAgent
+    );
   }
 
   /**
@@ -45,16 +85,23 @@ export class XbullAdapter implements WalletAdapter {
    */
   async connect(): Promise<WalletAccount> {
     try {
-      if (!this.isInstalled()) {
-        throw new WalletError('xBull is not installed', 'WALLET_NOT_INSTALLED', 'xbull');
+      const xbull = this.getXBullInstance();
+      if (!xbull) {
+        const errorMessage = this.isMobile() 
+          ? 'xBull mobile app not detected. Please install xBull from app store.'
+          : 'xBull extension not installed. Please install from Chrome Web Store.';
+        
+        throw new WalletError(errorMessage, 'WALLET_NOT_INSTALLED', 'xbull');
       }
 
-      const account = await window.xBull!.connect();
+      const account = await xbull.connect();
       return {
         publicKey: account.publicKey,
         network: account.network,
       };
     } catch (error) {
+      if (error instanceof WalletError) throw error;
+      
       throw new WalletError(
         `Failed to connect to xBull: ${error instanceof Error ? error.message : 'Unknown error'}`,
         'CONNECTION_FAILED',
@@ -69,8 +116,9 @@ export class XbullAdapter implements WalletAdapter {
    */
   async disconnect(): Promise<void> {
     try {
-      if (this.isInstalled()) {
-        await window.xBull!.disconnect();
+      const xbull = this.getXBullInstance();
+      if (xbull) {
+        await xbull.disconnect();
       }
     } catch (error) {
       throw new WalletError(
@@ -88,12 +136,15 @@ export class XbullAdapter implements WalletAdapter {
    */
   async getPublicKey(): Promise<string> {
     try {
-      if (!this.isInstalled()) {
+      const xbull = this.getXBullInstance();
+      if (!xbull) {
         throw new WalletError('xBull is not installed', 'WALLET_NOT_INSTALLED', 'xbull');
       }
 
-      return await window.xBull!.getPublicKey();
+      return await xbull.getPublicKey();
     } catch (error) {
+      if (error instanceof WalletError) throw error;
+      
       throw new WalletError(
         `Failed to get public key: ${error instanceof Error ? error.message : 'Unknown error'}`,
         'GET_PUBLIC_KEY_FAILED',
@@ -111,12 +162,15 @@ export class XbullAdapter implements WalletAdapter {
    */
   async signTransaction(xdr: string, network?: Network): Promise<string> {
     try {
-      if (!this.isInstalled()) {
+      const xbull = this.getXBullInstance();
+      if (!xbull) {
         throw new WalletError('xBull is not installed', 'WALLET_NOT_INSTALLED', 'xbull');
       }
 
-      return await window.xBull!.signTransaction(xdr, network);
+      return await xbull.signTransaction(xdr, network);
     } catch (error) {
+      if (error instanceof WalletError) throw error;
+      
       throw new WalletError(
         `Failed to sign transaction: ${error instanceof Error ? error.message : 'Unknown error'}`,
         'SIGN_TRANSACTION_FAILED',
@@ -132,12 +186,15 @@ export class XbullAdapter implements WalletAdapter {
    */
   async getNetwork(): Promise<Network> {
     try {
-      if (!this.isInstalled()) {
+      const xbull = this.getXBullInstance();
+      if (!xbull) {
         throw new WalletError('xBull is not installed', 'WALLET_NOT_INSTALLED', 'xbull');
       }
 
-      return await window.xBull!.getNetwork();
+      return await xbull.getNetwork();
     } catch (error) {
+      if (error instanceof WalletError) throw error;
+      
       throw new WalletError(
         `Failed to get network: ${error instanceof Error ? error.message : 'Unknown error'}`,
         'GET_NETWORK_FAILED',
@@ -152,11 +209,12 @@ export class XbullAdapter implements WalletAdapter {
    * @returns Cleanup function to remove listener
    */
   onAccountChanged(callback: (account: WalletAccount | null) => void): () => void {
-    if (!this.isInstalled()) {
+    const xbull = this.getXBullInstance();
+    if (!xbull) {
       return () => {};
     }
 
-    return window.xBull!.onAccountChanged((account: { publicKey: string; network: Network } | null) => {
+    return xbull.onAccountChanged((account: { publicKey: string; network: Network } | null) => {
       if (account) {
         callback({
           publicKey: account.publicKey,
@@ -174,10 +232,11 @@ export class XbullAdapter implements WalletAdapter {
    * @returns Cleanup function to remove listener
    */
   onNetworkChanged(callback: (network: Network) => void): () => void {
-    if (!this.isInstalled()) {
+    const xbull = this.getXBullInstance();
+    if (!xbull) {
       return () => {};
     }
 
-    return window.xBull!.onNetworkChanged(callback);
+    return xbull.onNetworkChanged(callback);
   }
 }
