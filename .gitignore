@@ -97,3 +97,5 @@ target/
 
 # Vite
 .vite/
+
+package-lock.json

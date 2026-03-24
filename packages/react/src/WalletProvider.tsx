@@ -1,158 +1,196 @@
-/**
- * React context provider for wallet connection
- * @fileoverview WalletProvider component for wallet state management
- */
+import {
+    createContext,
+    useReducer,
+    useEffect,
+    useCallback,
+    useRef,
+    useMemo,
+    type ReactNode,
+} from 'react';
 
-import React, { createContext, useContext, ReactNode, useCallback, useEffect, useState } from 'react';
-import { Network, WalletState, WalletAccount, WalletError, WalletType } from '@stellar-wallet-connect/core';
+export type WalletType = 'freighter' | 'xbull' | 'lobstr' | 'albedo' | 'rabet';
+export type Network = 'public' | 'testnet';
+export type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'error' | 'disconnecting';
 
-/**
- * Wallet context value interface
- */
+export interface WalletAccount {
+    publicKey: string;
+    network: Network;
+}
+
+export interface WalletState {
+    status: ConnectionStatus;
+    walletId: WalletType | null;
+    account: WalletAccount | null;
+    error: string | null;
+}
+
+export interface WalletAdapter {
+    isInstalled(): boolean;
+    connect(): Promise<WalletAccount>;
+    disconnect(): Promise<void>;
+    getPublicKey(): Promise<string>;
+    getNetwork(): Promise<Network>;
+    signTransaction(xdr: string, network?: Network): Promise<string>;
+    onAccountChanged?: (callback: (account: WalletAccount | null) => void) => () => void;
+    onNetworkChanged?: (callback: (network: Network) => void) => () => void;
+}
+
 export interface WalletContextValue {
-  /** Current wallet connection state */
-  readonly state: WalletState;
-  /** Connect to a wallet */
-  connect: (walletType: WalletType) => Promise<void>;
-  /** Disconnect from current wallet */
-  disconnect: () => Promise<void>;
-  /** Sign a transaction */
-  signTransaction: (xdr: string, network?: Network) => Promise<string>;
+    state: WalletState;
+    connect: (walletId: WalletType) => Promise<void>;
+    disconnect: () => Promise<void>;
+    signTransaction: (xdr: string) => Promise<string>;
+    resetError: () => void;
+    isConnected: boolean;
 }
 
-/**
- * Wallet provider props
- */
+const LS_KEY = 'stellar-wallet-connect';
+const DEBOUNCE_MS = 300;
+
 export interface WalletProviderProps {
-  /** Child components */
-  readonly children: ReactNode;
-  /** Default network to use */
-  readonly network?: Network;
-  /** Auto-connect on mount */
-  readonly autoConnect?: boolean;
+    children: ReactNode;
+    adapters: Partial<Record<WalletType, WalletAdapter>>;
+    autoReconnect?: boolean;
 }
 
-/**
- * Wallet context for React components
- */
-const WalletContext = createContext<WalletContextValue | undefined>(undefined);
+export const WalletContext = createContext<WalletContextValue | null>(null);
 
-/**
- * Hook to access wallet context
- * @returns Wallet context value
- * @throws Error if used outside WalletProvider
- * @example
- * ```tsx
- * const { state, connect, disconnect } = useWalletContext();
- * ```
- */
-export function useWalletContext(): WalletContextValue {
-  const context = useContext(WalletContext);
-  if (context === undefined) {
-    throw new Error('useWalletContext must be used within a WalletProvider');
-  }
-  return context;
-}
+type Action =
+    | { type: 'CONNECT_START'; walletId: WalletType }
+    | { type: 'CONNECT_SUCCESS'; account: WalletAccount; walletId: WalletType }
+    | { type: 'CONNECT_FAILURE'; error: string }
+    | { type: 'DISCONNECT_START' }
+    | { type: 'DISCONNECT_SUCCESS' }
+    | { type: 'ACCOUNT_CHANGED'; publicKey: string }
+    | { type: 'NETWORK_CHANGED'; network: Network }
+    | { type: 'RESET_ERROR' };
 
-/**
- * React provider component for wallet connection state
- * @param props - Provider props
- * @returns Provider component
- * @example
- * ```tsx
- * <WalletProvider network="public" autoConnect={false}>
- *   <App />
- * </WalletProvider>
- * ```
- */
-export function WalletProvider({ children, network = 'public', autoConnect = false }: WalletProviderProps): ReactNode {
-  const [state, setState] = useState<WalletState>({
-    isConnected: false,
-    wallet: null,
+const initialState: WalletState = {
+    status: 'idle',
+    walletId: null,
     account: null,
-    isConnecting: false,
     error: null,
-  });
+};
 
-  const connect = useCallback(async (walletType: WalletType): Promise<void> => {
-    setState(prev => ({ ...prev, isConnecting: true, error: null }));
-    
-    try {
-      // TODO: Implement actual wallet connection using core package
-      // This would use the wallet adapters from @stellar-wallet-connect/core
-      throw new Error('Wallet connection not implemented in provider yet');
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      setState(prev => ({ 
-        ...prev, 
-        isConnecting: false, 
-        error: errorMessage 
-      }));
+function reducer(state: WalletState, action: Action): WalletState {
+    switch (action.type) {
+        case 'CONNECT_START':
+            return { ...state, status: 'connecting', walletId: action.walletId, error: null };
+        case 'CONNECT_SUCCESS':
+            return { status: 'connected', walletId: action.walletId, account: action.account, error: null };
+        case 'CONNECT_FAILURE':
+            return { ...state, status: 'error', error: action.error };
+        case 'DISCONNECT_START':
+            return { ...state, status: 'disconnecting' };
+        case 'DISCONNECT_SUCCESS':
+            return { ...initialState };
+        case 'ACCOUNT_CHANGED':
+            return state.account ? { ...state, account: { ...state.account, publicKey: action.publicKey } } : state;
+        case 'NETWORK_CHANGED':
+            return state.account ? { ...state, account: { ...state.account, network: action.network } } : state;
+        case 'RESET_ERROR':
+            return { ...state, status: 'idle', error: null };
+        default:
+            return state;
     }
-  }, []);
+}
 
-  const disconnect = useCallback(async (): Promise<void> => {
-    setState(prev => ({ ...prev, isConnecting: true }));
-    
-    try {
-      // TODO: Implement actual wallet disconnection
-      setState({
-        isConnected: false,
-        wallet: null,
-        account: null,
-        isConnecting: false,
-        error: null,
-      });
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      setState(prev => ({ 
-        ...prev, 
-        isConnecting: false, 
-        error: errorMessage 
-      }));
-    }
-  }, []);
+export function WalletProvider({ children, adapters, autoReconnect = true }: WalletProviderProps) {
+    const [state, dispatch] = useReducer(reducer, initialState);
+    const adapterRef = useRef<WalletAdapter | null>(null);
+    const unsubs = useRef<(() => void)[]>([]);
+    const timers = useRef<{ acc?: any; net?: any }>({});
 
-  const signTransaction = useCallback(async (xdr: string, networkParam?: Network): Promise<string> => {
-    if (!state.isConnected || !state.wallet) {
-      throw new WalletError('No wallet connected', 'NO_WALLET_CONNECTED');
-    }
+    const detach = useCallback(() => {
+        unsubs.current.forEach(u => u());
+        unsubs.current = [];
+        if (timers.current.acc) clearTimeout(timers.current.acc);
+        if (timers.current.net) clearTimeout(timers.current.net);
+    }, []);
 
-    try {
-      // TODO: Implement actual transaction signing using wallet adapter
-      throw new Error('Transaction signing not implemented in provider yet');
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      setState(prev => ({ ...prev, error: errorMessage }));
-      throw error;
-    }
-  }, [state.isConnected, state.wallet]);
+    const attach = useCallback((adapter: WalletAdapter, handleDisconnect: () => void) => {
+        detach();
+        if (adapter.onAccountChanged) {
+            unsubs.current.push(
+                adapter.onAccountChanged((account) => {
+                    clearTimeout(timers.current.acc);
+                    timers.current.acc = setTimeout(() => {
+                        if (account?.publicKey) dispatch({ type: 'ACCOUNT_CHANGED', publicKey: account.publicKey });
+                        else void handleDisconnect();
+                    }, DEBOUNCE_MS);
+                })
+            );
+        }
+        if (adapter.onNetworkChanged) {
+            unsubs.current.push(
+                adapter.onNetworkChanged((net) => {
+                    clearTimeout(timers.current.net);
+                    timers.current.net = setTimeout(() => dispatch({ type: 'NETWORK_CHANGED', network: net }), DEBOUNCE_MS);
+                })
+            );
+        }
+    }, [detach]);
 
-  // Auto-connect effect
-  useEffect(() => {
-    if (autoConnect) {
-      // TODO: Implement auto-connection logic
-      // This would check for previously connected wallet and reconnect
-    }
-  }, [autoConnect]);
+    const connect = useCallback(async (id: WalletType) => {
+        dispatch({ type: 'CONNECT_START', walletId: id });
+        const adp = adapters[id];
+        if (!adp?.isInstalled()) {
+            dispatch({ type: 'CONNECT_FAILURE', error: `${id} not installed` });
+            return;
+        }
+        try {
+            const acc = await adp.connect();
+            adapterRef.current = adp;
+            attach(adp, () => {
+                void disconnect();
+            });
+            localStorage.setItem(LS_KEY, JSON.stringify({ walletId: id }));
+            dispatch({ type: 'CONNECT_SUCCESS', walletId: id, account: acc });
+        } catch (e: unknown) {
+            dispatch({ type: 'CONNECT_FAILURE', error: e instanceof Error ? e.message : 'Failed to connect wallet' });
+        }
+    }, [adapters, attach]);
 
-  // Cleanup effect
-  useEffect(() => {
-    return () => {
-      // TODO: Cleanup wallet connections and event listeners
-    };
-  }, []);
+    const disconnect = useCallback(async () => {
+        dispatch({ type: 'DISCONNECT_START' });
+        detach();
+        if (adapterRef.current) await adapterRef.current.disconnect().catch(() => { });
+        adapterRef.current = null;
+        localStorage.removeItem(LS_KEY);
+        dispatch({ type: 'DISCONNECT_SUCCESS' });
+    }, [detach]);
 
-  const value: WalletContextValue = {
-    state,
-    connect,
-    disconnect,
-    signTransaction,
-  };
+    useEffect(() => {
+        if (!autoReconnect) return;
 
-  return (
-    <WalletContext.Provider value={value}>
-      {children}
-    </WalletContext.Provider>
-  );
+        const raw = localStorage.getItem(LS_KEY);
+        if (!raw) return;
+
+        try {
+            const parsed = JSON.parse(raw) as { walletId?: WalletType };
+            if (parsed.walletId && adapters[parsed.walletId]) {
+                void connect(parsed.walletId);
+            }
+        } catch {
+            localStorage.removeItem(LS_KEY);
+        }
+    }, [adapters, autoReconnect, connect]);
+
+    useEffect(() => () => {
+        detach();
+    }, [detach]);
+
+    const value = useMemo(() => ({
+        state,
+        connect,
+        disconnect,
+        resetError: () => dispatch({ type: 'RESET_ERROR' }),
+        signTransaction: async (xdr: string) => {
+            if (!adapterRef.current) throw new Error('No wallet connected');
+            return adapterRef.current.signTransaction(xdr, state.account?.network);
+        },
+        isConnected: state.status === 'connected',
+    }), [state, connect, disconnect]);
+
+    return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;
 }

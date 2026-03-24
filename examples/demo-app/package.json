@@ -5,15 +5,18 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "dev": "vite",
     "build": "tsc && vite build",
+    "preview": "vite preview",
     "test": "echo \"Tests pending\" && exit 0"
   },
   "dependencies": {
     "@stellar-wallet-connect/core": "workspace:*",
     "@stellar-wallet-connect/react": "workspace:*",
-    "@stellar-wallet-connect/ui": "workspace:*",
+    "@stellar/stellar-sdk": "^12.1.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "react-hot-toast": "^2.4.1"
   },
   "devDependencies": {
     "@types/react": "^18.2.0",

@@ -1,157 +1,113 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { WalletProvider, useWallet } from '@stellar-wallet-connect/react';
-import { WalletSelectionModal } from '@stellar-wallet-connect/ui';
-import { WalletInfo } from '@stellar-wallet-connect/core';
+import { Toaster } from 'react-hot-toast';
+import { WalletConnect } from './components/WalletConnect';
+import { NetworkBadge } from './components/NetworkBadge';
+import { BalanceDisplay } from './components/BalanceDisplay';
+import { SendXLMForm } from './components/SendXLMForm';
+import { TransactionHistory } from './components/TransactionHistory';
+import { ADAPTER_MAP } from './adapters';
+import './index.css';
 
+// ─── Inner app (uses useWallet hook) ────────────────────────────────────────
 function DemoApp() {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const { state, connect, disconnect } = useWallet();
-
-  // TODO: Replace with actual wallet detection
-  const mockWallets: WalletInfo[] = [
-    {
-      type: 'freighter',
-      name: 'Freighter',
-      icon: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiByeD0iOCIgZmlsbD0iIzY3NjJEMCIvPgo8cGF0aCBkPSJNMjAgMTJMMjYgMjBIMjBMMjAgMTJaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K',
-      url: 'https://www.freighter.app',
-      isInstalled: true,
-    },
-    {
-      type: 'albedo',
-      name: 'Albedo',
-      icon: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiByeD0iOCIgZmlsbD0iIzY2NjZGRiIvPgo8cGF0aCBkPSJNMjAgOEwzMjAyMEwyMCAzMjhMOiA4WiIgZmlsbD0id2hpdGUiLz4KPC9zdmc+',
-      url: 'https://albedo.link',
-      isInstalled: true,
-    },
-  ];
-
-  const handleWalletSelect = async (walletType: string) => {
-    try {
-      await connect(walletType as any);
-      setIsModalOpen(false);
-    } catch (error) {
-      console.error('Failed to connect wallet:', error);
-    }
-  };
-
-  const handleDisconnect = async () => {
-    try {
-      await disconnect();
-    } catch (error) {
-      console.error('Failed to disconnect wallet:', error);
-    }
-  };
+  const { state } = useWallet();
+  const [txRefresh, setTxRefresh] = useState(0);
+  const isConnected = state.status === 'connected' && !!state.account;
 
   return (
-    <div style={{ maxWidth: '800px', margin: '0 auto', padding: '2rem' }}>
-      <header style={{ textAlign: 'center', marginBottom: '2rem' }}>
-        <h1>Stellar Wallet Connect Demo</h1>
-        <p>Basic demonstration of wallet connectivity</p>
+    <div className="app">
+      {/* Header */}
+      <header className="header">
+        <div className="header-logo">
+          <svg width="32" height="32" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="40" height="40" rx="10" fill="url(#grad)" />
+            <path d="M12 20h16M20 12l8 8-8 8" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <defs>
+              <linearGradient id="grad" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+                <stop stopColor="#4e90ff"/>
+                <stop offset="1" stopColor="#7c5cfc"/>
+              </linearGradient>
+            </defs>
+          </svg>
+          Stellar Wallet Connect
+        </div>
+        <p>Full-featured demo — connect, view balance, and send XLM on testnet</p>
       </header>
 
-      <main>
-        <section style={{ background: 'white', padding: '2rem', borderRadius: '8px', marginBottom: '2rem' }}>
-          <h2>Wallet Connection</h2>
-          
-          {state.isConnected ? (
-            <div>
-              <h3>Connected Wallet</h3>
-              <p><strong>Wallet:</strong> {state.wallet?.name}</p>
-              <p><strong>Public Key:</strong></p>
-              <code style={{ background: '#f0f0f0', padding: '0.5rem', display: 'block', borderRadius: '4px' }}>
-                {state.account?.publicKey}
-              </code>
-              <p><strong>Network:</strong> {state.account?.network}</p>
-              
-              <button 
-                onClick={handleDisconnect}
-                style={{ 
-                  marginTop: '1rem', 
-                  padding: '0.5rem 1rem', 
-                  background: '#dc3545', 
-                  color: 'white', 
-                  border: 'none', 
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-                }}
-              >
-                Disconnect
-              </button>
-            </div>
-          ) : (
-            <div>
-              <p>No wallet connected</p>
-              <button 
-                onClick={() => setIsModalOpen(true)}
-                style={{ 
-                  padding: '0.5rem 1rem', 
-                  background: '#007bff', 
-                  color: 'white', 
-                  border: 'none', 
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-                }}
-              >
-                Connect Wallet
-              </button>
-            </div>
-          )}
+      {/* Status bar (shown when connected) */}
+      {isConnected && state.account && (
+        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1rem', padding: '0.75rem 1.25rem' }}>
+          <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Network</span>
+          <NetworkBadge network={state.account.network} />
+          <div style={{ flex: 1 }} />
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
+            {state.account.publicKey.slice(0, 8)}…{state.account.publicKey.slice(-8)}
+          </span>
+        </div>
+      )}
 
-          {state.error && (
-            <div style={{ 
-              background: '#f8d7da', 
-              color: '#721c24', 
-              padding: '1rem', 
-              borderRadius: '4px', 
-              marginTop: '1rem' 
-            }}>
-              <strong>Error:</strong> {state.error}
-            </div>
-          )}
+      <div className="stack">
+        {/* Top grid: connect + balance */}
+        <div className="grid-2">
+          <WalletConnect />
+          <BalanceDisplay />
+        </div>
 
-          {state.isConnecting && (
-            <div style={{ 
-              background: '#fff3cd', 
-              color: '#856404', 
-              padding: '1rem', 
-              borderRadius: '4px', 
-              marginTop: '1rem' 
-            }}>
-              Connecting to wallet...
-            </div>
-          )}
-        </section>
+        {/* Send form (only when connected) */}
+        {isConnected && (
+          <SendXLMForm onSent={() => setTxRefresh(n => n + 1)} />
+        )}
 
-        <section style={{ background: 'white', padding: '2rem', borderRadius: '8px' }}>
-          <h2>Features</h2>
-          <ul>
-            <li>✅ Multi-wallet support (Freighter, xBull, Lobstr, Albedo, Rabet)</li>
-            <li>✅ TypeScript with strict types</li>
-            <li>✅ React hooks for easy integration</li>
-            <li>✅ Wallet selection modal component</li>
-            <li>✅ Auto-detection of installed wallets</li>
-            <li>✅ Event listeners for account/network changes</li>
-            <li>✅ Comprehensive error handling</li>
-          </ul>
-        </section>
-      </main>
+        {/* Transaction history (full width) */}
+        {isConnected && (
+          <div className="grid-2">
+            <TransactionHistory refreshTrigger={txRefresh} />
+          </div>
+        )}
+      </div>
 
-      <WalletSelectionModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        wallets={mockWallets}
-        onWalletSelect={handleWalletSelect}
-      />
+      {/* Footer */}
+      <footer style={{ textAlign: 'center', marginTop: '3rem', color: 'var(--text-dim)', fontSize: '0.8rem' }}>
+        <p>
+          Built with{' '}
+          <a href="https://github.com/Kevin737866/stellar-wallet-connect-" target="_blank" rel="noreferrer"
+            style={{ color: 'var(--accent)', textDecoration: 'none' }}>
+            stellar-wallet-connect
+          </a>{' '}·{' '}
+          <a href="https://laboratory.stellar.org/" target="_blank" rel="noreferrer"
+            style={{ color: 'var(--accent)', textDecoration: 'none' }}>
+            Stellar Lab
+          </a>{' '}·{' '}
+          <a href="https://stellar.expert/" target="_blank" rel="noreferrer"
+            style={{ color: 'var(--accent)', textDecoration: 'none' }}>
+            Stellar Expert
+          </a>
+        </p>
+      </footer>
     </div>
   );
 }
 
-function App() {
+// ─── Root: provides WalletProvider + Toaster ─────────────────────────────────
+export default function App() {
   return (
-    <WalletProvider>
+    <WalletProvider adapters={ADAPTER_MAP} autoReconnect={true}>
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          style: {
+            background: '#1a2235',
+            color: '#e8edf8',
+            border: '1px solid rgba(255,255,255,0.08)',
+            fontFamily: 'Inter, sans-serif',
+            fontSize: '0.875rem',
+          },
+          success: { iconTheme: { primary: '#22c55e', secondary: '#0a0f1e' } },
+          error:   { iconTheme: { primary: '#ef4444', secondary: '#0a0f1e' } },
+        }}
+      />
       <DemoApp />
     </WalletProvider>
   );
 }
-
-export default App;
