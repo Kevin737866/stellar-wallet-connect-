@@ -14,6 +14,51 @@ export type WalletType = 'freighter' | 'xbull' | 'lobstr' | 'albedo' | 'rabet';
 export type Network = 'public' | 'testnet';
 
 /**
+ * Mobile platform types
+ */
+export type MobilePlatform = 'ios' | 'android' | 'unknown';
+
+/**
+ * Deep link action types for mobile wallets
+ */
+export type DeepLinkAction = 'connect' | 'signTransaction' | 'getPublicKey' | 'getNetwork';
+
+/**
+ * Mobile deep link configuration
+ */
+export interface MobileDeepLinkConfig {
+  /** Deep link URL scheme */
+  scheme: string;
+  /** Action to perform */
+  action: DeepLinkAction;
+  /** Parameters for the action */
+  params: Record<string, string>;
+  /** Callback URL for response */
+  callbackUrl?: string;
+  /** Timeout in milliseconds */
+  timeout?: number;
+}
+
+/**
+ * Mobile deep link response
+ */
+export interface DeepLinkResponse {
+  /** Action that was performed */
+  action: DeepLinkAction;
+  /** Response data */
+  data: {
+    publicKey?: string;
+    signedXDR?: string;
+    network?: Network;
+    error?: string;
+  };
+  /** Success status */
+  success: boolean;
+  /** Timestamp of response */
+  timestamp: number;
+}
+
+/**
  * Wallet account information
  */
 export interface WalletAccount {
@@ -35,6 +80,8 @@ export interface WalletAdapter {
   readonly icon: string;
   /** Official wallet website URL */
   readonly url: string;
+  /** Download URL for wallet installation */
+  readonly downloadUrl?: string;
 
   /**
    * Check if wallet is installed and available
@@ -90,6 +137,18 @@ export interface WalletAdapter {
    * @returns Cleanup function to remove listener
    */
   onNetworkChanged?(callback: (network: Network) => void): () => void;
+
+  /**
+   * Check if wallet supports mobile deep linking
+   * @returns True if mobile deep linking is supported
+   */
+  supportsMobileDeepLink?(): boolean;
+
+  /**
+   * Check if wallet supports web fallback
+   * @returns True if web fallback is supported
+   */
+  supportsWebFallback?(): boolean;
 }
 
 /**
@@ -138,14 +197,54 @@ export class WalletError extends Error {
   readonly code: string;
   /** Wallet type that caused the error */
   readonly walletType?: WalletType;
+  /** Additional error context */
+  readonly context?: Record<string, any>;
 
-  constructor(message: string, code: string, walletType?: WalletType) {
+  constructor(message: string, code: string, walletType?: WalletType, context?: Record<string, any>) {
     super(message);
     this.name = 'WalletError';
     this.code = code;
     this.walletType = walletType;
+    this.context = context;
   }
 }
+
+/**
+ * Common wallet error codes
+ */
+export const WalletErrorCode = {
+  // General errors
+  WALLET_NOT_INSTALLED: 'WALLET_NOT_INSTALLED',
+  CONNECTION_FAILED: 'CONNECTION_FAILED',
+  DISCONNECT_FAILED: 'DISCONNECT_FAILED',
+  GET_PUBLIC_KEY_FAILED: 'GET_PUBLIC_KEY_FAILED',
+  SIGN_TRANSACTION_FAILED: 'SIGN_TRANSACTION_FAILED',
+  GET_NETWORK_FAILED: 'GET_NETWORK_FAILED',
+  
+  // Mobile-specific errors
+  MOBILE_CONNECT_FAILED: 'MOBILE_CONNECT_FAILED',
+  MOBILE_GET_PUBLIC_KEY_FAILED: 'MOBILE_GET_PUBLIC_KEY_FAILED',
+  MOBILE_SIGN_TRANSACTION_FAILED: 'MOBILE_SIGN_TRANSACTION_FAILED',
+  MOBILE_GET_NETWORK_FAILED: 'MOBILE_GET_NETWORK_FAILED',
+  DEEP_LINK_TIMEOUT: 'DEEP_LINK_TIMEOUT',
+  DEEP_LINK_UNSUPPORTED: 'DEEP_LINK_UNSUPPORTED',
+  
+  // Web fallback errors
+  WEB_FALLBACK_FAILED: 'WEB_FALLBACK_FAILED',
+  WEB_FALLBACK_NOT_SUPPORTED: 'WEB_FALLBACK_NOT_SUPPORTED',
+  
+  // Network errors
+  NETWORK_NOT_SUPPORTED: 'NETWORK_NOT_SUPPORTED',
+  NETWORK_MISMATCH: 'NETWORK_MISMATCH',
+  
+  // Transaction errors
+  INVALID_TRANSACTION: 'INVALID_TRANSACTION',
+  TRANSACTION_REJECTED: 'TRANSACTION_REJECTED',
+  
+  // User errors
+  USER_REJECTED: 'USER_REJECTED',
+  USER_CANCELLED: 'USER_CANCELLED',
+} as const;
 
 /**
  * Account balance information
@@ -197,6 +296,44 @@ export interface WalletInfo {
   readonly icon: string;
   /** Wallet website */
   readonly url: string;
+  /** Download URL for wallet installation */
+  readonly downloadUrl?: string;
   /** Installation status */
   readonly isInstalled: boolean;
+  /** Mobile deep linking support */
+  readonly supportsMobileDeepLink?: boolean;
+  /** Web fallback support */
+  readonly supportsWebFallback?: boolean;
 }
+
+/**
+ * Mobile platform detection utilities
+ */
+export const MobilePlatform = {
+  /** Check if running on iOS */
+  isIOS: (): boolean => {
+    if (typeof window === 'undefined') return false;
+    return /iPad|iPhone|iPod/.test(navigator.userAgent);
+  },
+  
+  /** Check if running on Android */
+  isAndroid: (): boolean => {
+    if (typeof window === 'undefined') return false;
+    return /Android/.test(navigator.userAgent);
+  },
+  
+  /** Check if running on mobile device */
+  isMobile: (): boolean => {
+    if (typeof window === 'undefined') return false;
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+      navigator.userAgent
+    );
+  },
+  
+  /** Get current mobile platform */
+  getPlatform: (): MobilePlatform => {
+    if (MobilePlatform.isIOS()) return 'ios';
+    if (MobilePlatform.isAndroid()) return 'android';
+    return 'unknown';
+  }
+} as const;
