@@ -3,6 +3,18 @@ import { createPortal } from 'react-dom';
 import { WalletInfo, WalletType } from '@stellar-wallet-connect/core';
 import styles from './WalletSelectionModal.module.css';
 
+// Wallet descriptions for user guidance
+const getWalletDescription = (walletType: WalletType): string => {
+  const descriptions = {
+    freighter: 'Popular browser extension for Stellar with simple interface',
+    xbull: 'Advanced wallet with multi-device support and enhanced security',
+    lobstr: 'User-friendly mobile wallet with built-in exchange features',
+    albedo: 'Web-based wallet requiring no installation - connect instantly',
+    rabet: 'Lightweight browser extension focused on security and speed',
+  };
+  return descriptions[walletType] || 'Connect your Stellar wallet';
+};
+
 interface WalletSelectionModalProps {
   /** Whether the modal is open */
   isOpen: boolean;
@@ -90,6 +102,11 @@ const WalletOption: React.FC<WalletOptionProps> = ({
             <span className={styles.statusNotInstalled}>Not installed</span>
           )}
         </div>
+        {showDescriptions && (
+          <div className={styles.walletOptionDescription}>
+            {getWalletDescription(wallet.type)}
+          </div>
+        )}
       </div>
 
       <div className={styles.walletOptionAction}>
@@ -136,6 +153,7 @@ export const WalletSelectionModal: React.FC<WalletSelectionModalProps> = ({
   showDescriptions = true,
 }) => {
   const [isClosing, setIsClosing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const modalRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
 
@@ -173,11 +191,13 @@ export const WalletSelectionModal: React.FC<WalletSelectionModalProps> = ({
     }
   }, [onWalletSelect]);
 
-  // Handle retry
+  // Handle retry with clear error state
   const handleRetry = useCallback(() => {
     // Clear error and let parent handle retry
-    // This is a placeholder - actual retry logic should be handled by parent
-  }, []);
+    if (error) {
+      onWalletSelect(connectingWalletType || 'freighter'); // Retry last attempted wallet
+    }
+  }, [error, connectingWalletType, onWalletSelect]);
 
   // Focus management
   useEffect(() => {
@@ -216,6 +236,12 @@ export const WalletSelectionModal: React.FC<WalletSelectionModalProps> = ({
 
   if (!isOpen) return null;
 
+  // Filter wallets based on search query
+  const filteredWallets = wallets.filter(wallet => 
+    wallet.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    getWalletDescription(wallet.type).toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   const modalContent = (
     <div 
       className={`${styles.modalBackdrop} ${isClosing ? styles.modalBackdropClosing : ''} ${darkMode ? styles.modalBackdropDark : ''}`}
@@ -246,6 +272,30 @@ export const WalletSelectionModal: React.FC<WalletSelectionModalProps> = ({
               <line x1="6" y1="6" x2="18" y2="18"></line>
             </svg>
           </button>
+        </div>
+
+        {/* Search Input */}
+        <div className={styles.searchContainer}>
+          <input
+            type="text"
+            placeholder="Search wallets..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className={`${styles.searchInput} ${darkMode ? styles.searchInputDark : ''}`}
+            aria-label="Search wallets"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className={styles.clearSearchButton}
+              aria-label="Clear search"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          )}
         </div>
 
         {/* Modal Description */}
@@ -281,7 +331,7 @@ export const WalletSelectionModal: React.FC<WalletSelectionModalProps> = ({
 
         {/* Wallet List */}
         <div className={styles.walletList}>
-          {wallets.map((wallet) => (
+          {filteredWallets.map((wallet) => (
             <WalletOption
               key={wallet.type}
               wallet={wallet}

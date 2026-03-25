@@ -131,6 +131,57 @@
   line-height: 1.5;
 }
 
+/* Search Container */
+.searchContainer {
+  padding: 0 24px 16px 24px;
+  position: relative;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid var(--wallet-modal-border);
+  border-radius: 8px;
+  background: var(--wallet-modal-background);
+  color: var(--wallet-modal-text);
+  font-size: 14px;
+  transition: var(--wallet-modal-transition);
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: var(--wallet-modal-primary);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.searchInputDark {
+  background: #374151;
+  border-color: #4b5563;
+}
+
+.searchInputDark::placeholder {
+  color: #9ca3af;
+}
+
+.clearSearchButton {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--wallet-modal-text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: var(--wallet-modal-transition);
+}
+
+.clearSearchButton:hover {
+  background: var(--wallet-modal-border);
+  color: var(--wallet-modal-text);
+}
+
 /* Error Container */
 .errorContainer {
   margin: 0 24px 16px 24px;
@@ -301,6 +352,13 @@
 .walletOptionStatus {
   font-size: 13px;
   color: var(--wallet-modal-text-muted);
+}
+
+.walletOptionDescription {
+  font-size: 12px;
+  color: var(--wallet-modal-text-dim);
+  margin-top: 4px;
+  line-height: 1.3;
 }
 
 .statusInstalled {
@@ -479,6 +537,11 @@
 
   .walletOptionStatus {
     font-size: 12px;
+  }
+
+  .walletOptionDescription {
+    font-size: 11px;
+    margin-top: 2px;
   }
 
   .walletOptionAction {
