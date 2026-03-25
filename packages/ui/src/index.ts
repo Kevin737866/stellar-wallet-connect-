@@ -1,2 +1,4 @@
 export { WalletSelectionModal } from './WalletSelectionModal';
-import './WalletSelectionModal.css';
+export { WalletModal, WalletButton } from './WalletModal';
+export type { WalletSelectionModalProps } from './WalletSelectionModal';
+import './WalletSelectionModal.module.css';

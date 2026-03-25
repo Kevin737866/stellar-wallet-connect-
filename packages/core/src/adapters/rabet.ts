@@ -29,6 +29,7 @@ export class RabetAdapter implements WalletAdapter {
   readonly name = 'Rabet';
   readonly icon = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiByeD0iOCIgZmlsbD0iI0Y1OTUwQiIvPgo8cGF0aCBkPSJNMTAgMTBIMzBWMzBIMTBWMTBaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K';
   readonly url = 'https://rabet.io';
+  readonly downloadUrl = 'https://chrome.google.com/webstore/detail/rabet-wallet/dmkapckfbcgbkdjpempkeliobhfcgbd';
 
   isInstalled(): boolean {
     return typeof window !== 'undefined' && !!window.rabet;
