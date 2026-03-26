@@ -67,6 +67,7 @@ export class FreighterAdapter implements WalletAdapter {
   readonly icon =
     'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiByeD0iOCIgZmlsbD0iIzY3NjJEMCIvPgo8cGF0aCBkPSJNMjAgMTJMMjYgMjBIMjBMMjAgMTJaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNMjAgMTJMMTQgMjBIMjBMMjAgMTJaIiBmaWxsPSIjQUFBN0U4Ii8+CjxwYXRoIGQ9Ik0yMCAyOEwxNCAyMEgyMEwyMCAyOFoiIGZpbGw9IndoaXRlIiBvcGFjaXR5PSIwLjciLz4KPC9zdmc+Cg==';
   readonly url = 'https://www.freighter.app';
+  readonly downloadUrl = 'https://www.freighter.app/download';
 
   // ─── Installation check ────────────────────────────────────────────────────
 

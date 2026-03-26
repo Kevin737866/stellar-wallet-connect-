@@ -29,6 +29,7 @@ export class WalletManager {
       name: adapter.name,
       icon: adapter.icon,
       url: adapter.url,
+      downloadUrl: adapter.downloadUrl,
       isInstalled: adapter.isInstalled(),
     }));
   }

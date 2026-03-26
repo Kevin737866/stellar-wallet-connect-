@@ -17,7 +17,7 @@
     "react-dom": ">=16.8.0"
   },
   "dependencies": {
-    "@stellar-wallet-connect/react": "workspace:*"
+    "@stellar-wallet-connect/core": "workspace:*"
   },
   "devDependencies": {
     "@types/react": "^18.0.0",
